@@ -77,7 +77,6 @@ class PctInteractor(cmd.Cmd):
                 "\nTYPE '\\h' FOR HELP.\n",
             False,
         )
-        self._load_talker(self._default_talker)
         
     def postloop(self):
         self._output_response('SEE YA.', False)
