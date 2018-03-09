@@ -4,5 +4,10 @@
 A global configuration file for the library.
 """
 
-# Global debug state
+# Debugging and testing
 PCT_DEBUG = True
+PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Night 2018/cheating'
+
+# Composition files
+PCT_COMPOSED_IMAGE_FILENAME = 'composed.jpg'
+PCT_COMPOSED_METADATA_FILENAME = 'composed.dat'
