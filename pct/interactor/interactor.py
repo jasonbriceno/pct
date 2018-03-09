@@ -21,22 +21,12 @@ class PctInteractor(cmd.Cmd):
     #
     
     prompt = '> '
-    doc_header = """Documented commands (type \help <topic>):"""
+    doc_header = """Documented commands (type help <topic>):"""
     
     def precmd(self, line):
-        line = line.strip()
         if not line:
             return ''
-        if line[0] == '\\':
-            return line[1:]
-        return 'say ' + line
-        
-    def do_d(self, line):
-        """
-        d
-        Toggles the debug state.
-        """
-        return self.do_debug(line)
+        return line.strip()
         
     def do_debug(self, line):
         """
@@ -50,20 +40,6 @@ class PctInteractor(cmd.Cmd):
         self._debug = True
         self._output_response('Debug enabled.', False)
     
-    def do_h(self, line):
-        """
-        h
-        List available commands with "h" or detailed help with "h cmd".
-        """
-        return self.do_help(line)
-        
-    def do_q(self, line):
-        """
-        q
-        Quits the Interactor.
-        """
-        return self.do_quit(line)
-    
     def do_quit(self, line):
         """
         quit
@@ -72,14 +48,17 @@ class PctInteractor(cmd.Cmd):
         return True
         
     def preloop(self):
-        self._output_response(
-            "WELCOME TO THE PICTIONARY TELEPHONE COMPOSER." +
-                "\nTYPE '\\h' FOR HELP.\n",
-            False,
-        )
+        self._output_response('Welcome to the Pictionary Telephone composer.')
+        self._output_response("Type 'help' for more info.")
+        
+        if self._debug:
+            self._output_response()
+            self._output_response('Debug enabled.')
+            
+        self._output_response()
         
     def postloop(self):
-        self._output_response('SEE YA.', False)
+        self._output_response('See ya.', False)
 
     #
     # Private
@@ -97,7 +76,7 @@ class PctInteractor(cmd.Cmd):
         response = '\n'.join([reply.get_text() for reply in replies])
         return self._output_response(response)
     
-    def _output_response(self, response, debug=False):
+    def _output_response(self, response='', debug=False):
         output = '{}{}'.format(
             self._output_spacer,
             response.replace('\n', '\n' + self._output_spacer)
