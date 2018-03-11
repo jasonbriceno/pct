@@ -4,6 +4,10 @@ import cv2
 
 from os.path import basename
 
+from ..common.configuration import (
+    PCT_WINDOW_HACK,
+)
+
 class PctComposerResponse:
 
     def get_response(self):
@@ -53,11 +57,16 @@ class PctComposer(BaseComposer):
             image_composer.prepare(debug)
         self._log_debug('Image preparation complete.')
     
-    def show_previews(self, width, height, debug=False):
+    def refresh_previews(self, width, height, startx=0, starty=0, margin=0,
+                         debug=False):
         self._debug = debug
-        self._log_debug('Showing previews...')
-        for image_composer in self._image_composers.values():
-            image_composer.show_preview(width, height, debug)
+        self._log_debug('Refreshing previews...')
+        x = startx
+        y = starty
+        for image in self._indexed_images.values():
+            self._image_composers[image].refresh_preview(x, y, width, height, debug)
+            x += width + margin
+            # y += height + margin
             
     #
     # Private
@@ -68,8 +77,10 @@ class PctComposer(BaseComposer):
         self._init_image_composers(image_files)
 
     def _init_image_composers(self, image_files):
+        self._indexed_images = {}
         self._image_composers = {}
-        for image in image_files:
+        for index, image in enumerate(image_files):
+            self._indexed_images[index] = image
             self._image_composers[image] =  ImgComposer(
                 image,
                 self._message_writer,
@@ -88,7 +99,7 @@ class ImgComposer(BaseComposer):
         self._prepare_image()
         self._prepare_window()
     
-    def show_preview(self, width, height, debug=False):
+    def refresh_preview(self, x, y, width, height, debug=False):
         self._debug = debug
         self._log_debug(str(self._image.shape))
         self._preview = cv2.resize(
@@ -97,7 +108,7 @@ class ImgComposer(BaseComposer):
             interpolation=cv2.INTER_AREA,
         )
         self._log_debug(str(self._preview.shape))
-        self._show_image(self._preview)
+        self._show_image(self._preview, x, y)
         
     #
     # Private
@@ -116,10 +127,11 @@ class ImgComposer(BaseComposer):
         self._window = basename(self._image_file)
         cv2.namedWindow(self._window)
     
-    def _show_image(self, image=None):
+    def _show_image(self, image=None, x=0, y=0):
         self._log_debug('Showing image {}'.format(self._image_file))
         if image is None:
             cv2.imshow(self._window, self._image)
         else:
             cv2.imshow(self._window, image)
-        cv2.waitKey(100)
+        cv2.moveWindow(self._window, x, y)
+        cv2.waitKey(PCT_WINDOW_HACK)

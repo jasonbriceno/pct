@@ -9,6 +9,9 @@ from ..datamanagement.files import get_input_image_filenames
 from ..common.configuration import (
     PCT_DEBUG,
     PCT_TEST_DIR,
+    PCT_PREVIEW_START_X,
+    PCT_PREVIEW_START_Y,
+    PCT_PREVIEW_MARGIN,
     PCT_PREVIEW_WIDTH,
     PCT_PREVIEW_HEIGHT,
 )
@@ -84,8 +87,8 @@ class PctInteractor(cmd.Cmd):
             self._output_response('Directory does not exist.')
             return
         
-        self._init_composer(filenames)
-        self._show_images()
+        self._init_composer(sorted(filenames))
+        self._refresh_images()
         
     def do_quit(self, line):
         """
@@ -147,10 +150,13 @@ class PctInteractor(cmd.Cmd):
         )
         self._composer.prepare(self._debug)
     
-    def _show_images(self):
-        self._composer.show_previews(
+    def _refresh_images(self):
+        self._composer.refresh_previews(
             PCT_PREVIEW_WIDTH,
             PCT_PREVIEW_HEIGHT,
+            PCT_PREVIEW_START_X,
+            PCT_PREVIEW_START_Y,
+            PCT_PREVIEW_MARGIN,
             self._debug,
         )
         
