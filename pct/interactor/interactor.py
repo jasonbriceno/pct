@@ -9,11 +9,16 @@ from ..datamanagement.files import get_input_image_filenames
 from ..common.configuration import (
     PCT_DEBUG,
     PCT_TEST_DIR,
+    
     PCT_PREVIEW_START_X,
     PCT_PREVIEW_START_Y,
     PCT_PREVIEW_MARGIN,
     PCT_PREVIEW_WIDTH,
     PCT_PREVIEW_HEIGHT,
+    
+    PCT_COMPOSITION_START_X,
+    PCT_COMPOSITION_START_Y,
+    PCT_COMPOSITION_WIDTH,
 )
 from ..composer.composer import (
     PctComposer,
@@ -63,6 +68,17 @@ class PctInteractor(cmd.Cmd):
             return ''
         return line.strip()
     
+    def do_c(self, line):
+        return self.do_compose(line)
+    
+    def do_compose(self, line):
+        """
+        compose
+        Composes the images into a single image.
+        """
+        self._compose_images()
+        self._refresh_composition()
+        
     def do_debug(self, line):
         """
         debug
@@ -216,6 +232,17 @@ class PctInteractor(cmd.Cmd):
             return False
         
         return self._composer.reindex_image(index0, index1)
-        
+    
+    def _compose_images(self):
+        return self._composer.compose(self._debug)
+    
+    def _refresh_composition(self):
+        self._composer.refresh_composition(
+            PCT_COMPOSITION_WIDTH,
+            PCT_COMPOSITION_START_X,
+            PCT_COMPOSITION_START_Y,
+            self._debug,
+        )
+    
 if __name__ == '__main__':
     PctInteractor().cmdloop()
