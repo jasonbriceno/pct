@@ -2,6 +2,8 @@
 
 import cv2
 
+from os.path import basename
+
 class PctComposerResponse:
 
     def get_response(self):
@@ -50,6 +52,12 @@ class PctComposer(BaseComposer):
         for image_composer in self._image_composers.values():
             image_composer.prepare(debug)
         self._log_debug('Image preparation complete.')
+    
+    def show_previews(self, width, height, debug=False):
+        self._debug = debug
+        self._log_debug('Showing previews...')
+        for image_composer in self._image_composers.values():
+            image_composer.show_preview(width, height, debug)
             
     #
     # Private
@@ -79,8 +87,18 @@ class ImgComposer(BaseComposer):
         self._log('Preparing {}'.format(self._image_file))
         self._prepare_image()
         self._prepare_window()
-        self._show_image()
     
+    def show_preview(self, width, height, debug=False):
+        self._debug = debug
+        self._log_debug(str(self._image.shape))
+        self._preview = cv2.resize(
+            self._image,
+            (width, height),
+            interpolation=cv2.INTER_AREA,
+        )
+        self._log_debug(str(self._preview.shape))
+        self._show_image(self._preview)
+        
     #
     # Private
     #
@@ -91,11 +109,17 @@ class ImgComposer(BaseComposer):
     
     def _prepare_image(self):
         self._log_debug('Preparing image {}'.format(self._image_file))
-        self._image = cv2.imread(self._image_file, cv2.IMREAD_UNCHANGED)
+        self._image = cv2.imread(self._image_file, cv2.IMREAD_GRAYSCALE)
         
     def _prepare_window(self):
         self._log_debug('Preparing window for {}'.format(self._image_file))
-        cv2.namedWindow(self._image_file)
+        self._window = basename(self._image_file)
+        cv2.namedWindow(self._window)
     
-    def _show_image(self):
-        cv2.imshow(self._image_file, self._image)
+    def _show_image(self, image=None):
+        self._log_debug('Showing image {}'.format(self._image_file))
+        if image is None:
+            cv2.imshow(self._window, self._image)
+        else:
+            cv2.imshow(self._window, image)
+        cv2.waitKey(100)

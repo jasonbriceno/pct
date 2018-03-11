@@ -11,3 +11,6 @@ PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Ni
 # Composition files
 PCT_COMPOSED_IMAGE_FILENAME = 'composed.jpg'
 PCT_COMPOSED_METADATA_FILENAME = 'composed.dat'
+
+PCT_PREVIEW_WIDTH = 337
+PCT_PREVIEW_HEIGHT = 253
