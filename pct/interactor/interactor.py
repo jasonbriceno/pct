@@ -82,7 +82,7 @@ class PctInteractor(cmd.Cmd):
             self._output_response('Directory does not exist.')
             return
         
-        self._composer = PctComposer(filenames)
+        self._init_composer(filenames)
         
     def do_quit(self, line):
         """
@@ -132,10 +132,17 @@ class PctInteractor(cmd.Cmd):
     
     def _output_response(self, response='', debug=False):
         if debug:
-            self._message_writer.write(response)
-        else:
             self._debug_writer.write(response)
+        else:
+            self._message_writer.write(response)
    
-    
+    def _init_composer(self, filenames):
+        self._composer = PctComposer(
+            filenames,
+            self._message_writer,
+            self._debug_writer,
+        )
+        self._composer.prepare(self._debug)
+        
 if __name__ == '__main__':
     PctInteractor().cmdloop()
