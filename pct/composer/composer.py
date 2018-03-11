@@ -66,8 +66,17 @@ class PctComposer(BaseComposer):
         for image in self._indexed_images.values():
             self._image_composers[image].refresh_preview(x, y, width, height, debug)
             x += width + margin
-            # y += height + margin
-            
+
+    def reindex_image(self, index_in, index_out, debug=False):
+        self._debug = debug
+        if self._check_index(index_in) and self._check_index(index_out):
+            return self._reindex_image(index_in, index_out)
+        return False
+    
+    def check_index(self, index, debug=False):
+        self._debug = debug
+        return self._check_index(index)
+    
     #
     # Private
     #
@@ -88,6 +97,17 @@ class PctComposer(BaseComposer):
             )
         return self._image_composers
 
+    def _check_index(self, index):
+        if index in self._indexed_images:
+            return True
+        return False
+
+    def _reindex_image(self, index_in, index_out):
+        temp = self._indexed_images[index_in]
+        self._indexed_images[index_in] = self._indexed_images[index_out]
+        self._indexed_images[index_out] = temp
+        return True
+    
 class ImgComposerError(BaseComposerError):
     pass
 

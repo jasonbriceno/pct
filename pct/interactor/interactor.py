@@ -75,6 +75,31 @@ class PctInteractor(cmd.Cmd):
         self._debug = True
         self._output_response('Debug enabled.')
     
+    def do_i(self, line):
+        """
+        i
+        Sets the current working image.
+        """
+        return self.do_image(line)
+    
+    def do_image(self, line):
+        """
+        image
+        Sets the current working image.
+        """
+        if not self._set_working_image(line):
+            self._output_response('{}: Invalid image index'.format(line))
+    
+    def do_index(self, line):
+        """
+        image
+        Sets the current working image.
+        """
+        if not self._reindex_image(line):
+            self._output_response('{}: Invalid image indices'.format(line))
+            return
+        self._refresh_images()
+            
     def do_load(self, line):
         """
         load
@@ -116,14 +141,15 @@ class PctInteractor(cmd.Cmd):
 
     def __init__(self):
         super(PctInteractor, self).__init__()
-        self.prompt = '> '
-        self.doc_header = """Documented commands (type help <topic>):"""
         
         self._debug = PCT_DEBUG
         
         self._init_writers('    ')
         self._output_spacer = '    '
-    
+        self.doc_header = """Documented commands (type help <topic>):"""
+        self._working_image = None
+        self._set_prompt()
+        
     def _init_writers(self, spacer):
         self._message_writer = PctInteractorWriter(spacer)
         self._debug_writer = PctInteractorWriter(spacer, AnsiColors.OKGREEN)
@@ -150,6 +176,12 @@ class PctInteractor(cmd.Cmd):
         )
         self._composer.prepare(self._debug)
     
+    def _set_prompt(self):
+        if self._working_image is None:
+            self.prompt = '> '
+        else:
+            self.prompt = 'image {}> '.format(self._working_image)
+
     def _refresh_images(self):
         self._composer.refresh_previews(
             PCT_PREVIEW_WIDTH,
@@ -159,6 +191,31 @@ class PctInteractor(cmd.Cmd):
             PCT_PREVIEW_MARGIN,
             self._debug,
         )
+    
+    def _set_working_image(self, line):
+        try:
+            index = int(line)
+        except Exception:
+            return False
+        
+        if self._composer.check_index(index):
+            self._working_image = index
+            self._set_prompt()
+            return True
+        return False
+            
+    def _reindex_image(self, line):
+        tokens = line.split()
+        if len(tokens) != 2:
+            return False
+        
+        try:
+            index0 = int(tokens[0])
+            index1 = int(tokens[1])
+        except Exception:
+            return False
+        
+        return self._composer.reindex_image(index0, index1)
         
 if __name__ == '__main__':
     PctInteractor().cmdloop()
