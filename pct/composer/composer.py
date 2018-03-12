@@ -5,7 +5,7 @@ import cv2
 from os.path import basename
 
 from ..common.configuration import (
-    PCT_WINDOW_HACK,
+    PCT_HACK_WINDOW_DELAY,
 )
 
 class PctComposerResponse:
@@ -60,23 +60,23 @@ class PctComposer(BaseComposer):
     def compose(self, debug=False):
         self._debug = debug
         self._log_debug('Composing image...')
-        self._composition = self._get_image(0)
+        self._composition = None
     
-    def refresh_previews(self, width, height, startx=0, starty=0, margin=0,
+    def refresh_previews(self, width, startx=0, starty=0, margin=0,
                          debug=False):
         self._debug = debug
         self._log_debug('Refreshing previews...')
         x = startx
         y = starty
         for image in self._indexed_images.values():
-            self._image_composers[image].refresh_preview(x, y, width, height, debug)
+            self._image_composers[image].refresh_preview(x, y, width, debug)
             x += width + margin
 
     def refresh_composition(self, width, startx=0, starty=0, debug=False):
         self._debug = debug
         self._log_debug('Refreshing composition...')
-        if self._composition is None:
-            self._log_debug('No compotion exists.')
+        if not self._create_composition():
+            self._log('No composition could be created.')
             return False
         return self._refresh_composition(width, startx, starty)
 
@@ -115,10 +115,15 @@ class PctComposer(BaseComposer):
             )
         return self._image_composers
 
-    def _init_window(self, name):
+    def _init_window(self, name=None):
         if self._window is not None:
             cv2.destroyWindow(self._window)
-        self._window = name
+        if name is not None:
+            self._window = name
+        else:
+            self._window = ' + '.join(
+                [self._get_window(i) for i in self._indexed_images.keys()]
+            )
         cv2.namedWindow(self._window)
         
     def _check_index(self, index):
@@ -129,18 +134,29 @@ class PctComposer(BaseComposer):
     def _get_image(self, index):
         return self._image_composers[self._indexed_images[index]].get_image()
     
+    def _get_window(self, index):
+        return self._image_composers[self._indexed_images[index]].get_window()
+    
     def _reindex_image(self, index_in, index_out):
         temp = self._indexed_images[index_in]
         self._indexed_images[index_in] = self._indexed_images[index_out]
         self._indexed_images[index_out] = temp
         return True
     
+    def _create_composition(self):
+        self._composition = self._get_image(0)
+        return True
+    
     def _refresh_composition(self, width, x=0, y=0):
         self._log_debug('Refreshing composition...')
-        self._init_window('COMPOSITION')
-        cv2.imshow(self._window, self._composition)
+        self._init_window()
+        preview = resize_image_width(self._composition, width)
+        self._show_image(preview, x, y)
+    
+    def _show_image(self, image, x=0, y=0):
+        cv2.imshow(self._window, image)
         cv2.moveWindow(self._window, x, y)
-        cv2.waitKey(PCT_WINDOW_HACK)
+        cv2.waitKey(PCT_HACK_WINDOW_DELAY)
         
 class ImgComposerError(BaseComposerError):
     pass
@@ -153,21 +169,17 @@ class ImgComposer(BaseComposer):
         self._prepare_image()
         self._prepare_window()
     
-    def refresh_preview(self, x, y, width, height, debug=False):
+    def refresh_preview(self, x, y, width, debug=False):
         self._debug = debug
         self._log_debug(str(self._image.shape))
-        self._preview = cv2.resize(
-            self._image,
-            (width, height),
-            interpolation=cv2.INTER_AREA,
-        )
-        self._log_debug(str(self._preview.shape))
-        self._show_image(self._preview, x, y)
+        preview = resize_image_width(self._image, width)
+        self._log_debug(str(preview.shape))
+        self._show_image(preview, x, y)
     
     def get_image(self):
-        return self._image
+        return self._image.copy()
     
-    def get_window_name(self):
+    def get_window(self):
         return self._window
     
     #
@@ -182,7 +194,7 @@ class ImgComposer(BaseComposer):
         
     def _prepare_image(self):
         self._log_debug('Preparing image {}'.format(self._image_file))
-        self._image = cv2.imread(self._image_file, cv2.IMREAD_GRAYSCALE)
+        self._image = cv2.imread(self._image_file)
         
     def _prepare_window(self):
         self._log_debug('Preparing window for {}'.format(self._image_file))
@@ -196,4 +208,18 @@ class ImgComposer(BaseComposer):
         else:
             cv2.imshow(self._window, image)
         cv2.moveWindow(self._window, x, y)
-        cv2.waitKey(PCT_WINDOW_HACK)
+        cv2.waitKey(PCT_HACK_WINDOW_DELAY)
+
+def resize_image_width(image, width):
+    current_width = image.shape[1]
+    if width == current_width:
+        return image.copy()
+    
+    current_height = image.shape[0]
+    height = (width * current_height) // current_width
+    
+    if width < current_width:
+        interp = cv2.INTER_AREA
+    else:
+        interp = cv2.INTER_LINEAR
+    return cv2.resize(image, (width, height), interpolation=interp)

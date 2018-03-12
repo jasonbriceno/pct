@@ -14,7 +14,6 @@ from ..common.configuration import (
     PCT_PREVIEW_START_Y,
     PCT_PREVIEW_MARGIN,
     PCT_PREVIEW_WIDTH,
-    PCT_PREVIEW_HEIGHT,
     
     PCT_COMPOSITION_START_X,
     PCT_COMPOSITION_START_Y,
@@ -115,7 +114,14 @@ class PctInteractor(cmd.Cmd):
             self._output_response('{}: Invalid image indices'.format(line))
             return
         self._refresh_images()
-            
+    
+    def do_l(self, line):
+        """
+        l
+        Loads a directory for processing.
+        """
+        return self.do_load(line)
+    
     def do_load(self, line):
         """
         load
@@ -130,7 +136,14 @@ class PctInteractor(cmd.Cmd):
         
         self._init_composer(sorted(filenames))
         self._refresh_images()
-        
+    
+    def do_q(self, line):
+        """
+        q
+        Quits the Interactor.
+        """
+        return self.do_quit(line)
+    
     def do_quit(self, line):
         """
         quit
@@ -201,7 +214,6 @@ class PctInteractor(cmd.Cmd):
     def _refresh_images(self):
         self._composer.refresh_previews(
             PCT_PREVIEW_WIDTH,
-            PCT_PREVIEW_HEIGHT,
             PCT_PREVIEW_START_X,
             PCT_PREVIEW_START_Y,
             PCT_PREVIEW_MARGIN,
