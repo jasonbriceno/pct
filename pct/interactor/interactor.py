@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import cmd
+import traceback
 
 from sys import stdout
-
-from ..datamanagement.files import get_input_image_filenames
+from os import path
 
 from ..common.configuration import (
     PCT_DEBUG,
@@ -18,10 +18,17 @@ from ..common.configuration import (
     PCT_COMPOSITION_START_X,
     PCT_COMPOSITION_START_Y,
     PCT_COMPOSITION_WIDTH,
+    
+    PCT_COMPOSED_IMAGE_FILENAME,
+    PCT_COMPOSED_METADATA_FILENAME,
+)
+from ..datamanagement.files import (
+    get_input_image_filepaths,
+    get_output_image_filepath,
+    get_output_metadata_filepath,
 )
 from ..composer.composer import (
     PctComposer,
-    PctComposerError,
 )
 
 class AnsiColors:
@@ -75,20 +82,26 @@ class PctInteractor(cmd.Cmd):
         compose
         Composes the images into a single image.
         """
-        self._compose_images()
-        self._refresh_composition()
-        
+        try:
+            self._compose_images()
+            self._refresh_composition()
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+            
     def do_debug(self, line):
         """
         debug
         Toggles the debug state.
         """
-        if self._debug:
-            self._debug = False
-            self._output_response('Debug disabled.')
-            return
-        self._debug = True
-        self._output_response('Debug enabled.')
+        try:
+            if self._debug:
+                self._debug = False
+                self._output_response('Debug disabled.')
+                return
+            self._debug = True
+            self._output_response('Debug enabled.')
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
     
     def do_i(self, line):
         """
@@ -102,18 +115,24 @@ class PctInteractor(cmd.Cmd):
         image
         Sets the current working image.
         """
-        if not self._set_working_image(line):
-            self._output_response('{}: Invalid image index'.format(line))
+        try:
+            if not self._set_working_image(line):
+                self._output_response('{}: Invalid image index'.format(line))
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
     
     def do_index(self, line):
         """
         image
         Sets the current working image.
         """
-        if not self._reindex_image(line):
-            self._output_response('{}: Invalid image indices'.format(line))
-            return
-        self._refresh_images()
+        try:
+            if not self._reindex_image(line):
+                self._output_response('{}: Invalid image indices'.format(line))
+                return
+            self._refresh_images()
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
     
     def do_l(self, line):
         """
@@ -127,15 +146,21 @@ class PctInteractor(cmd.Cmd):
         load
         Loads a directory for processing.
         """
-        self._output_response('Loading ' + line)
         try:
-            filenames = get_input_image_filenames(PCT_TEST_DIR)
-        except FileNotFoundError:
-            self._output_response('Directory does not exist.')
-            return
-        
-        self._init_composer(sorted(filenames))
-        self._refresh_images()
+            self._output_response('Loading ' + line)
+            try:
+                filepaths = get_input_image_filepaths(PCT_TEST_DIR)
+                self._set_loaded_directory(PCT_TEST_DIR)
+            except FileNotFoundError:
+                self._output_response('Directory does not exist.')
+                return
+            
+            self._init_composer(sorted(filepaths))
+            self._refresh_images()
+            self.do_compose('')
+            
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
     
     def do_q(self, line):
         """
@@ -150,6 +175,23 @@ class PctInteractor(cmd.Cmd):
         Quits the Interactor.
         """
         return True
+    
+    def do_s(self, line):
+        """
+        s
+        Saves currently composed images.
+        """
+        return self.do_save(line)
+    
+    def do_save(self, line):
+        """
+        save
+        Saves currently composed images.
+        """
+        try:
+            self._save()
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
         
     def preloop(self):
         self._output_response('Welcome to the Pictionary Telephone composer.')
@@ -176,6 +218,7 @@ class PctInteractor(cmd.Cmd):
         self._init_writers('    ')
         self._output_spacer = '    '
         self.doc_header = """Documented commands (type help <topic>):"""
+        self._loaded_directory = None
         self._working_image = None
         self._set_prompt()
         
@@ -197,19 +240,22 @@ class PctInteractor(cmd.Cmd):
         else:
             self._message_writer.write(response)
    
-    def _init_composer(self, filenames):
+    def _init_composer(self, filepaths):
         self._composer = PctComposer(
-            filenames,
+            filepaths,
             self._message_writer,
             self._debug_writer,
         )
         self._composer.prepare(self._debug)
-    
+        
     def _set_prompt(self):
-        if self._working_image is None:
-            self.prompt = '> '
-        else:
-            self.prompt = 'image {}> '.format(self._working_image)
+        if self._loaded_directory is None:
+            self.prompt = '>'
+            return
+        self.prompt = path.split(self._loaded_directory)[1]
+        if self._working_image is not None:
+            self.prompt += ': image {}'.format(self._working_image)
+        self.prompt += '> '
 
     def _refresh_images(self):
         self._composer.refresh_previews(
@@ -220,6 +266,10 @@ class PctInteractor(cmd.Cmd):
             self._debug,
         )
     
+    def _set_loaded_directory(self, directory):
+        self._loaded_directory = directory
+        self._set_prompt()
+        
     def _set_working_image(self, line):
         try:
             index = int(line)
@@ -256,5 +306,12 @@ class PctInteractor(cmd.Cmd):
             self._debug,
         )
     
+    def _save(self):
+        self._composer.save(
+            get_output_image_filepath(self._loaded_directory),
+            get_output_metadata_filepath(self._loaded_directory),
+            self._debug,
+        )
+        
 if __name__ == '__main__':
     PctInteractor().cmdloop()

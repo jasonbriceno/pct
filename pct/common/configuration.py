@@ -8,9 +8,8 @@ A global configuration file for the library.
 PCT_DEBUG = True
 PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Night 2018/cheating'
 
-# Composition files
-PCT_COMPOSED_IMAGE_FILENAME = 'composed.jpg'
-PCT_COMPOSED_METADATA_FILENAME = 'composed.dat'
+# Image Files
+PCT_IMAGE_EXTENSIONS = ['jpg', 'png']
 
 # Preview dimensions
 PCT_PREVIEW_START_X = 1500
@@ -25,3 +24,9 @@ PCT_COMPOSITION_START_Y = 300
 PCT_COMPOSITION_WIDTH = 1800
 
 PCT_HACK_WINDOW_DELAY = 10
+
+# Composition files
+PCT_PREFIX = '_pct_'
+PCT_EDITED_IMAGE_PREFIX = PCT_PREFIX + 'edit_'
+PCT_COMPOSED_IMAGE_FILENAME = PCT_PREFIX + 'composed.jpg'
+PCT_COMPOSED_METADATA_FILENAME = PCT_PREFIX + 'metadata.txt'
