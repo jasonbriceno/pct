@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import numpy
 import cv2
 
 from os.path import basename
 
 from ..common.configuration import (
+    PCT_BORDER_PIXELS,
     PCT_HACK_WINDOW_DELAY,
 )
 from ..datamanagement.files import (
@@ -63,7 +65,10 @@ class PctComposer(BaseComposer):
     def compose(self, debug=False):
         self._debug = debug
         self._log_debug('Composing image...')
-        self._composition = None
+        if not self._create_composition():
+            self._log('No composition could be created.')
+            return False
+        return True
     
     def refresh_previews(self, width, startx=0, starty=0, margin=0,
                          debug=False):
@@ -78,9 +83,6 @@ class PctComposer(BaseComposer):
     def refresh_composition(self, width, startx=0, starty=0, debug=False):
         self._debug = debug
         self._log_debug('Refreshing composition...')
-        if not self._create_composition():
-            self._log('No composition could be created.')
-            return False
         return self._refresh_composition(width, startx, starty)
 
     def reindex_image(self, index_in, index_out, debug=False):
@@ -182,6 +184,9 @@ class PctComposer(BaseComposer):
     
     def _create_composition(self):
         self._composition = self._get_image(0)
+        images = [c.get_image() for c in self._get_composers()]
+        min_height = min([img.shape[0] for img in images])
+        self._composition = compose_images(images, min_height)
         return True
     
     def _refresh_composition(self, width, x=0, y=0):
@@ -303,3 +308,44 @@ def resize_image_width(image, width):
     else:
         interp = cv2.INTER_LINEAR
     return cv2.resize(image, (width, height), interpolation=interp)
+
+def resize_image_height(image, height):
+    current_height = image.shape[0]
+    if height == current_height:
+        return image.copy()
+    
+    current_width = image.shape[1]
+    width = (height * current_width) // current_height
+    
+    if height < current_height:
+        interp = cv2.INTER_AREA
+    else:
+        interp = cv2.INTER_LINEAR
+    return cv2.resize(image, (width, height), interpolation=interp)
+
+def add_image_border(image, noleft=False):
+    if noleft:
+        left_pixels = 0
+    else:
+        left_pixels = PCT_BORDER_PIXELS
+    return cv2.copyMakeBorder(
+        image,
+        PCT_BORDER_PIXELS,
+        PCT_BORDER_PIXELS,
+        left_pixels,
+        PCT_BORDER_PIXELS,
+        cv2.BORDER_CONSTANT,
+    )
+
+def compose_images(images, height):
+    resized_images = [resize_image_height(img, height) for img in images]
+    
+    # Image borders are a little hacky
+    bordered_images = []
+    for index, img in enumerate(resized_images):
+        if index == 0:
+            bordered_images.append(add_image_border(img))
+        else:
+            bordered_images.append(add_image_border(img, True))
+            
+    return numpy.concatenate(bordered_images, axis=1)
