@@ -15,6 +15,8 @@ from ..common.configuration import (
     PCT_PREVIEW_MARGIN,
     PCT_PREVIEW_WIDTH,
     
+    PCT_DEFAULT_ROTATION,
+    
     PCT_COMPOSITION_START_X,
     PCT_COMPOSITION_START_Y,
     PCT_COMPOSITION_WIDTH,
@@ -62,7 +64,10 @@ class PctInteractorWriter:
         if self._color is None:
             return string
         return self._color + string + AnsiColors.ENDC
-        
+
+class PctInteractorError(Exception):
+    pass
+
 class PctInteractor(cmd.Cmd):
     
     #
@@ -83,8 +88,11 @@ class PctInteractor(cmd.Cmd):
         Composes the images into a single image.
         """
         try:
+            self._validate_composer()
             self._compose_images()
             self._refresh_composition()
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
             
@@ -100,6 +108,8 @@ class PctInteractor(cmd.Cmd):
                 return
             self._debug = True
             self._output_response('Debug enabled.')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
@@ -116,8 +126,11 @@ class PctInteractor(cmd.Cmd):
         Sets the current working image.
         """
         try:
+            self._validate_composer()
             if not self._set_working_image(line):
                 self._output_response('{}: Invalid image index'.format(line))
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
@@ -127,10 +140,13 @@ class PctInteractor(cmd.Cmd):
         Sets the current working image.
         """
         try:
+            self._validate_composer()
             if not self._reindex_image(line):
                 self._output_response('{}: Invalid image indices'.format(line))
                 return
             self._refresh_images()
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
@@ -158,7 +174,9 @@ class PctInteractor(cmd.Cmd):
             self._init_composer(sorted(filepaths))
             self._refresh_images()
             self.do_compose('')
-            
+        
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
@@ -176,6 +194,32 @@ class PctInteractor(cmd.Cmd):
         """
         return True
     
+    def do_r(self, line):
+        """
+        r
+        Rotates current working image.
+        """
+        return self.do_rotate(line)
+    
+    def do_rotate(self, line):
+        """
+        rotate
+        Rotates current working image.
+        """
+        try:
+            self._validate_composer()
+            if not line:
+                angle = PCT_DEFAULT_ROTATION
+            else:
+                angle = int(line)
+            self._rotate(angle)
+            self._refresh_images()
+            self.do_compose('')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+
     def do_s(self, line):
         """
         s
@@ -189,7 +233,10 @@ class PctInteractor(cmd.Cmd):
         Saves currently composed images.
         """
         try:
+            self._validate_composer()
             self._save()
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
         
@@ -222,6 +269,8 @@ class PctInteractor(cmd.Cmd):
         self._working_image = None
         self._set_prompt()
         
+        self._composer = None
+        
     def _init_writers(self, spacer):
         self._message_writer = PctInteractorWriter(spacer)
         self._debug_writer = PctInteractorWriter(spacer, AnsiColors.OKGREEN)
@@ -247,10 +296,14 @@ class PctInteractor(cmd.Cmd):
             self._debug_writer,
         )
         self._composer.prepare(self._debug)
-        
+    
+    def _validate_composer(self):
+        if self._composer is None:
+            raise PctInteractorError('No directory is loaded.')
+
     def _set_prompt(self):
         if self._loaded_directory is None:
-            self.prompt = '>'
+            self.prompt = '> '
             return
         self.prompt = path.split(self._loaded_directory)[1]
         if self._working_image is not None:
@@ -306,6 +359,12 @@ class PctInteractor(cmd.Cmd):
             self._debug,
         )
     
+    def _rotate(self, angle):
+        if self._working_image is None:
+            self._output_response('No working image to rotate.')
+        else:
+            self._composer.rotate(self._working_image, angle)
+        
     def _save(self):
         self._composer.save(
             get_output_image_filepath(self._loaded_directory),

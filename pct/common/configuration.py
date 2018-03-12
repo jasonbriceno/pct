@@ -11,14 +11,17 @@ PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Ni
 # Image Files
 PCT_IMAGE_EXTENSIONS = ['jpg', 'png']
 
-# Preview settings
+# Preview Settings
 PCT_PREVIEW_START_X = 1500
 PCT_PREVIEW_START_Y = -200
 PCT_PREVIEW_MARGIN = 5
 PCT_PREVIEW_WIDTH = 337
 PCT_PREVIEW_HEIGHT = 253
 
-# Composition settings
+# Edit Settings
+PCT_DEFAULT_ROTATION = 10
+
+# Composition Settings
 PCT_COMPOSITION_START_X = 1500
 PCT_COMPOSITION_START_Y = 300
 PCT_COMPOSITION_WIDTH = 1800

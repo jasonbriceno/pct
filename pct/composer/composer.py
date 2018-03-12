@@ -97,6 +97,15 @@ class PctComposer(BaseComposer):
         self._log_debug('Checking index {}'.format(index))
         return self._check_index(index)
     
+    def rotate(self, index, angle, debug=False):
+        self._debug = debug
+        self._log_debug('Rotating {} by {}'.format(index, angle))
+        if not self._check_index(index):
+            self._log('Invalid index.')
+            return False
+        return self._get_composer(index).rotate(angle, debug)
+        
+            
     def save(self, filepath, metafile=None, debug=False):
         self._debug = debug
         self._log_debug('Saving {}'.format(filepath))
@@ -159,6 +168,9 @@ class PctComposer(BaseComposer):
             return True
         return False
 
+    def _get_composer(self, index):
+        return self._image_composers[self._indexed_images[index]]
+        
     def _get_composers(self, ordered=True):
         indices = list(self._indexed_images.keys())
         if ordered:
@@ -170,12 +182,6 @@ class PctComposer(BaseComposer):
             )
         return composers
     
-    def _get_image(self, index):
-        return self._image_composers[self._indexed_images[index]].get_image()
-    
-    def _get_window(self, index):
-        return self._image_composers[self._indexed_images[index]].get_window()
-    
     def _reindex_image(self, index_in, index_out):
         temp = self._indexed_images[index_in]
         self._indexed_images[index_in] = self._indexed_images[index_out]
@@ -183,7 +189,6 @@ class PctComposer(BaseComposer):
         return True
     
     def _create_composition(self):
-        self._composition = self._get_image(0)
         images = [c.get_image() for c in self._get_composers()]
         min_height = min([img.shape[0] for img in images])
         self._composition = compose_images(images, min_height)
@@ -239,6 +244,11 @@ class ImgComposer(BaseComposer):
     def get_window(self):
         return self._window
     
+    def rotate(self, angle, debug=False):
+        self._debug = debug
+        self._log_debug('Rotating {}'.format(self._image_file))
+        self._rotate(angle)
+        
     def save(self, debug=False):
         self._debug = debug
         self._log_debug('Saving edited {}'.format(self._image_file))
@@ -291,6 +301,10 @@ class ImgComposer(BaseComposer):
     def _get_save_filepath(self):
         return get_edited_image_filepath(self._image_file)
     
+    def _rotate(self, angle):
+        rotated = rotate_image(self._current_image(), angle)
+        self._add_image(rotated)
+
     def _save(self, filepath=None):
         cv2.imwrite(filepath, self._current_image())
         return True
@@ -322,6 +336,11 @@ def resize_image_height(image, height):
     else:
         interp = cv2.INTER_LINEAR
     return cv2.resize(image, (width, height), interpolation=interp)
+
+def rotate_image(image, angle):
+    rows, cols, _ = image.shape
+    M = cv2.getRotationMatrix2D((cols // 2, rows // 2), -angle, 1)
+    return cv2.warpAffine(image, M, (cols,rows))
 
 def add_image_border(image, noleft=False):
     if noleft:
