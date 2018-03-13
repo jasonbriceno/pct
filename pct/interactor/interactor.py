@@ -16,13 +16,11 @@ from ..common.configuration import (
     PCT_PREVIEW_WIDTH,
     
     PCT_DEFAULT_ROTATION,
+    PCT_DEFAULT_FIT,
     
     PCT_COMPOSITION_START_X,
     PCT_COMPOSITION_START_Y,
     PCT_COMPOSITION_WIDTH,
-    
-    PCT_COMPOSED_IMAGE_FILENAME,
-    PCT_COMPOSED_METADATA_FILENAME,
 )
 from ..datamanagement.files import (
     get_input_image_filepaths,
@@ -89,6 +87,7 @@ class PctInteractor(cmd.Cmd):
         """
         try:
             self._validate_composer()
+            self._refresh_images()
             self._compose_images()
             self._refresh_composition()
         except PctInteractorError as err:
@@ -113,6 +112,31 @@ class PctInteractor(cmd.Cmd):
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
+    def do_f(self, line):
+        """
+        f
+        Fits the current working image canvas to the card.
+        """
+        self.do_fit(line)
+        
+    def do_fit(self, line):
+        """
+        fits
+        Fits the current working image canvas to the card.
+        """
+        try:
+            self._validate_composer()
+            if not line:
+                strength = PCT_DEFAULT_FIT
+            else:
+                strength = int(line)
+            if self._fit(strength):
+                self.do_compose('')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+            
     def do_i(self, line):
         """
         i
@@ -144,7 +168,7 @@ class PctInteractor(cmd.Cmd):
             if not self._reindex_image(line):
                 self._output_response('{}: Invalid image indices'.format(line))
                 return
-            self._refresh_images()
+            self.do_compose('')
         except PctInteractorError as err:
             self._output_response(str(err), True)
         except Exception:
@@ -172,7 +196,6 @@ class PctInteractor(cmd.Cmd):
                 return
             
             self._init_composer(sorted(filepaths))
-            self._refresh_images()
             self.do_compose('')
         
         except PctInteractorError as err:
@@ -209,7 +232,6 @@ class PctInteractor(cmd.Cmd):
         try:
             self._validate_composer()
             if self._redo():
-                self._refresh_images()
                 self.do_compose('')
         except PctInteractorError as err:
             self._output_response(str(err), True)
@@ -234,9 +256,8 @@ class PctInteractor(cmd.Cmd):
                 angle = PCT_DEFAULT_ROTATION
             else:
                 angle = int(line)
-            self._rotate(angle)
-            self._refresh_images()
-            self.do_compose('')
+            if self._rotate(angle):
+                self.do_compose('')
         except PctInteractorError as err:
             self._output_response(str(err), True)
         except Exception:
@@ -277,7 +298,6 @@ class PctInteractor(cmd.Cmd):
         try:
             self._validate_composer()
             if self._undo():
-                self._refresh_images()
                 self.do_compose('')
         except PctInteractorError as err:
             self._output_response(str(err), True)
@@ -403,11 +423,17 @@ class PctInteractor(cmd.Cmd):
             self._debug,
         )
     
+    def _fit(self, strength):
+        if self._working_image is None:
+            self._output_response('No working image to fit.')
+            return False
+        return self._composer.fit(self._working_image, strength, self._debug)
+    
     def _rotate(self, angle):
         if self._working_image is None:
             self._output_response('No working image to rotate.')
-        else:
-            self._composer.rotate(self._working_image, angle)
+            return False
+        return self._composer.rotate(self._working_image, angle, self._debug)
         
     def _save(self):
         self._composer.save(
@@ -420,13 +446,13 @@ class PctInteractor(cmd.Cmd):
         if self._working_image is None:
             self._output_response('No working image to undo.')
             return False
-        return self._composer.undo(self._working_image)
+        return self._composer.undo(self._working_image, self._debug)
     
     def _redo(self):
         if self._working_image is None:
             self._output_response('No working image to redo.')
             return False
-        return self._composer.redo(self._working_image)
+        return self._composer.redo(self._working_image, self._debug)
             
 if __name__ == '__main__':
     PctInteractor().cmdloop()

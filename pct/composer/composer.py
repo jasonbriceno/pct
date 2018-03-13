@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 
-import numpy
 import cv2
 
 from os.path import basename
 
 from ..common.configuration import (
-    PCT_BORDER_PIXELS,
     PCT_HACK_WINDOW_DELAY,
 )
 from ..datamanagement.files import (
     get_edited_image_filepath,
+)
+from .imageprocessing import (
+    resize_image_width,
+    rotate_image,
+    compose_images,
+    find_dominant_contours,
+    draw_contours,
 )
 
 class PctComposerResponse:
@@ -97,9 +102,17 @@ class PctComposer(BaseComposer):
         self._log_debug('Checking index {}'.format(index))
         return self._check_index(index)
     
+    def fit(self, index, strength, debug=False):
+        self._debug = debug
+        self._log_debug('Fitting image {} at {}'.format(index, strength))
+        if not self._check_index(index):
+            self._log('Invalid index.')
+            return False
+        return self._get_composer(index).fit(strength, debug)
+    
     def rotate(self, index, angle, debug=False):
         self._debug = debug
-        self._log_debug('Rotating {} by {}'.format(index, angle))
+        self._log_debug('Rotating image {} by {}'.format(index, angle))
         if not self._check_index(index):
             self._log('Invalid index.')
             return False
@@ -130,7 +143,7 @@ class PctComposer(BaseComposer):
     
     def undo(self, index, debug=False):
         self._debug = debug
-        self._log_debug('Undoing action on {}.'.format(index))
+        self._log_debug('Undoing action on image {}.'.format(index))
         if not self._check_index(index):
             self._log('Invalid index.')
             return False
@@ -138,7 +151,7 @@ class PctComposer(BaseComposer):
     
     def redo(self, index, debug=False):
         self._debug = debug
-        self._log_debug('Redoing action on {}.'.format(index))
+        self._log_debug('Redoing action on image {}.'.format(index))
         if not self._check_index(index):
             self._log('Invalid index.')
             return False
@@ -259,11 +272,21 @@ class ImgComposer(BaseComposer):
     def get_window(self):
         return self._window
     
+    def fit(self, strength, debug=False):
+        self._debug = debug
+        self._log_debug('Fitting {}'.format(self._image_file))
+        if self._fit(strength):
+            self._init_redo_images()
+            return True
+        return False
+    
     def rotate(self, angle, debug=False):
         self._debug = debug
         self._log_debug('Rotating {}'.format(self._image_file))
         if self._rotate(angle):
             self._init_redo_images()
+            return True
+        return False
         
     def save(self, debug=False):
         self._debug = debug
@@ -344,9 +367,21 @@ class ImgComposer(BaseComposer):
     def _get_save_filepath(self):
         return get_edited_image_filepath(self._image_file)
     
+    def _fit(self, strength):
+        contours = find_dominant_contours(self._current_image(), strength)
+        if contours is None:
+            return False
+        # print(contour)
+        fitted = draw_contours(self._current_image(), contours)
+        if fitted is None:
+            return False
+        self._add_image(fitted)
+        return True
+    
     def _rotate(self, angle):
         rotated = rotate_image(self._current_image(), angle)
         self._add_image(rotated)
+        return True
 
     def _save(self, filepath=None):
         cv2.imwrite(filepath, self._current_image())
@@ -365,63 +400,3 @@ class ImgComposer(BaseComposer):
             self._add_image(image)
             return True
         return False
-    
-def resize_image_width(image, width):
-    current_width = image.shape[1]
-    if width == current_width:
-        return image.copy()
-    
-    current_height = image.shape[0]
-    height = (width * current_height) // current_width
-    
-    if width < current_width:
-        interp = cv2.INTER_AREA
-    else:
-        interp = cv2.INTER_LINEAR
-    return cv2.resize(image, (width, height), interpolation=interp)
-
-def resize_image_height(image, height):
-    current_height = image.shape[0]
-    if height == current_height:
-        return image.copy()
-    
-    current_width = image.shape[1]
-    width = (height * current_width) // current_height
-    
-    if height < current_height:
-        interp = cv2.INTER_AREA
-    else:
-        interp = cv2.INTER_LINEAR
-    return cv2.resize(image, (width, height), interpolation=interp)
-
-def rotate_image(image, angle):
-    rows, cols, _ = image.shape
-    M = cv2.getRotationMatrix2D((cols // 2, rows // 2), -angle, 1)
-    return cv2.warpAffine(image, M, (cols,rows))
-
-def add_image_border(image, noleft=False):
-    if noleft:
-        left_pixels = 0
-    else:
-        left_pixels = PCT_BORDER_PIXELS
-    return cv2.copyMakeBorder(
-        image,
-        PCT_BORDER_PIXELS,
-        PCT_BORDER_PIXELS,
-        left_pixels,
-        PCT_BORDER_PIXELS,
-        cv2.BORDER_CONSTANT,
-    )
-
-def compose_images(images, height):
-    resized_images = [resize_image_height(img, height) for img in images]
-    
-    # Image borders are a little hacky
-    bordered_images = []
-    for index, img in enumerate(resized_images):
-        if index == 0:
-            bordered_images.append(add_image_border(img))
-        else:
-            bordered_images.append(add_image_border(img, True))
-            
-    return numpy.concatenate(bordered_images, axis=1)
