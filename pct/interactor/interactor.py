@@ -194,6 +194,28 @@ class PctInteractor(cmd.Cmd):
         """
         return True
     
+    def do_uu(self, line):
+        """
+        uu
+        Redoes the previously undone action.
+        """
+        return self.do_redo(line)
+    
+    def do_redo(self, line):
+        """
+        redo
+        Redoes the previously undone action.
+        """
+        try:
+            self._validate_composer()
+            if self._redo():
+                self._refresh_images()
+                self.do_compose('')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+            
     def do_r(self, line):
         """
         r
@@ -239,7 +261,29 @@ class PctInteractor(cmd.Cmd):
             self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
-        
+    
+    def do_u(self, line):
+        """
+        u
+        Undoes the previous action.
+        """
+        return self.do_undo(line)
+    
+    def do_undo(self, line):
+        """
+        undo
+        Undoes the previous action.
+        """
+        try:
+            self._validate_composer()
+            if self._undo():
+                self._refresh_images()
+                self.do_compose('')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+            
     def preloop(self):
         self._output_response('Welcome to the Pictionary Telephone composer.')
         self._output_response("Type 'help' for more info.")
@@ -371,6 +415,18 @@ class PctInteractor(cmd.Cmd):
             get_output_metadata_filepath(self._loaded_directory),
             self._debug,
         )
-        
+     
+    def _undo(self):
+        if self._working_image is None:
+            self._output_response('No working image to undo.')
+            return False
+        return self._composer.undo(self._working_image)
+    
+    def _redo(self):
+        if self._working_image is None:
+            self._output_response('No working image to redo.')
+            return False
+        return self._composer.redo(self._working_image)
+            
 if __name__ == '__main__':
     PctInteractor().cmdloop()

@@ -104,8 +104,7 @@ class PctComposer(BaseComposer):
             self._log('Invalid index.')
             return False
         return self._get_composer(index).rotate(angle, debug)
-        
-            
+             
     def save(self, filepath, metafile=None, debug=False):
         self._debug = debug
         self._log_debug('Saving {}'.format(filepath))
@@ -128,7 +127,23 @@ class PctComposer(BaseComposer):
                 return False
             
         return True
-            
+    
+    def undo(self, index, debug=False):
+        self._debug = debug
+        self._log_debug('Undoing action on {}.'.format(index))
+        if not self._check_index(index):
+            self._log('Invalid index.')
+            return False
+        return self._get_composer(index).undo(debug)
+    
+    def redo(self, index, debug=False):
+        self._debug = debug
+        self._log_debug('Redoing action on {}.'.format(index))
+        if not self._check_index(index):
+            self._log('Invalid index.')
+            return False
+        return self._get_composer(index).redo(debug)
+    
     #
     # Private
     #
@@ -247,7 +262,8 @@ class ImgComposer(BaseComposer):
     def rotate(self, angle, debug=False):
         self._debug = debug
         self._log_debug('Rotating {}'.format(self._image_file))
-        self._rotate(angle)
+        if self._rotate(angle):
+            self._init_redo_images()
         
     def save(self, debug=False):
         self._debug = debug
@@ -257,18 +273,40 @@ class ImgComposer(BaseComposer):
             return filepath
         return None
     
+    def undo(self, debug=False):
+        self._debug = debug
+        self._log_debug('Undoing action on {}'.format(self._image_file))
+        return self._undo()
+    
+    def redo(self, debug=False):
+        self._debug = debug
+        self._log_debug('Redoing action on {}'.format(self._image_file))
+        return self._redo()
+            
+        
     #
     # Private
     #
     
     def __init__(self, image_file, message_writer=None, debug_writer=None):
         super(ImgComposer, self).__init__(message_writer, debug_writer)
+        self._init_images()
+        self._init_redo_images()
+        
         self._image_file = image_file
-        self._images = []
         self._window = None
     
+    def _init_images(self):
+        self._images = []
+    
+    def _init_redo_images(self):
+        self._redo_images = []
+        
     def _add_image(self, image):
         self._images.append(image)
+    
+    def _add_redo_image(self, image):
+        self._redo_images.append(image)
     
     def _current_image(self):
         if len(self._images) < 1:
@@ -279,6 +317,11 @@ class ImgComposer(BaseComposer):
         if len(self._images) < 2:
             return None
         return self._images.pop()
+    
+    def _pop_redo_image(self):
+        if len(self._redo_images) < 1:
+            return None
+        return self._redo_images.pop()
     
     def _prepare_image(self):
         self._log_debug('Preparing image {}'.format(self._image_file))
@@ -308,6 +351,20 @@ class ImgComposer(BaseComposer):
     def _save(self, filepath=None):
         cv2.imwrite(filepath, self._current_image())
         return True
+    
+    def _undo(self):
+        image = self._pop_image()
+        if image is not None:
+            self._add_redo_image(image)
+            return True
+        return False
+    
+    def _redo(self):
+        image = self._pop_redo_image()
+        if image is not None:
+            self._add_image(image)
+            return True
+        return False
     
 def resize_image_width(image, width):
     current_width = image.shape[1]
