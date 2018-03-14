@@ -7,7 +7,7 @@ from sys import stdout
 from os import path
 
 from ..common.configuration import (
-    PCT_DEBUG,
+    PCT_DEFAULT_DEBUG,
     PCT_TEST_DIR,
     
     PCT_PREVIEW_START_X,
@@ -15,6 +15,7 @@ from ..common.configuration import (
     PCT_PREVIEW_MARGIN,
     PCT_PREVIEW_WIDTH,
     
+    PCT_DEFAULT_AUTOMAGIC,
     PCT_DEFAULT_ROTATION,
     PCT_DEFAULT_FIT,
     
@@ -80,13 +81,8 @@ class PctInteractor(cmd.Cmd):
     def preloop(self):
         self._output_response('Welcome to the Pictionary Telephone composer.')
         self._output_response("Type 'help' for more info.")
-        
-        if self._debug:
-            self._output_response()
-            self._output_response('Debug enabled.')
-            
-        self._output_response()
-        
+        self._report_state()
+                    
     def postloop(self):
         self._output_response('See ya.')
     
@@ -102,6 +98,24 @@ class PctInteractor(cmd.Cmd):
     # Do methods
     #
     
+    def do_auto(self, line):
+        """
+        auto
+        Toggles automagic. If on, automagic will automatically perform the
+        magic operation when a directory is loaded.
+        """
+        try:
+            if self._automagic:
+                self._automagic = False
+                self._output_response('Automagic disabled.')
+                return
+            self._automagic = True
+            self._output_response('Automagic enabled.')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+
     def do_c(self, line):
         return self.do_compose(line)
     
@@ -218,15 +232,17 @@ class PctInteractor(cmd.Cmd):
         try:
             self._output_response('Loading ' + line)
             try:
-                filepaths = get_input_image_filepaths(PCT_TEST_DIR)
-                self._set_loaded_directory(PCT_TEST_DIR)
+                filepaths = get_input_image_filepaths(line)
+                self._set_loaded_directory(line)
             except FileNotFoundError:
                 self._output_response('Directory does not exist.')
                 return
             
             self._init_composer(sorted(filepaths))
             self.do_compose('')
-        
+            if self._automagic:
+                self.do_magic('')
+                
         except PctInteractorError as err:
             self._output_response(str(err), True)
         except Exception:
@@ -371,7 +387,8 @@ class PctInteractor(cmd.Cmd):
     def __init__(self):
         super(PctInteractor, self).__init__()
         
-        self._debug = PCT_DEBUG
+        self._debug = PCT_DEFAULT_DEBUG
+        self._automagic = PCT_DEFAULT_AUTOMAGIC
         
         self._init_writers('    ')
         self._output_spacer = '    '
@@ -385,7 +402,17 @@ class PctInteractor(cmd.Cmd):
     def _init_writers(self, spacer):
         self._message_writer = PctInteractorWriter(spacer)
         self._debug_writer = PctInteractorWriter(spacer, AnsiColors.OKGREEN)
-        
+    
+    def _report_state(self):
+        if self._debug:
+            self._output_response('Debug enabled.')
+        else:
+            self._output_response('Debug disabled.')
+        if self._automagic:
+            self._output_response('Automagic enabled.')
+        else:
+            self._output_response('Automagic disabled.')
+
     def _output_debug(self, msg):
         if self._debug and msg:
             self._output_response(msg, False)

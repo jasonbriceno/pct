@@ -5,7 +5,7 @@ A global configuration file for the library.
 """
 
 # Debugging and testing
-PCT_DEBUG = True
+PCT_DEFAULT_DEBUG = True
 PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Night 2018/cheating'
 
 # Image Files
@@ -19,6 +19,7 @@ PCT_PREVIEW_WIDTH = 337
 PCT_PREVIEW_HEIGHT = 253
 
 # Edit Settings
+PCT_DEFAULT_AUTOMAGIC = True
 PCT_DEFAULT_ROTATION = 5
 PCT_DEFAULT_FIT = 25
 PCT_FIT_BUFFER = 25
