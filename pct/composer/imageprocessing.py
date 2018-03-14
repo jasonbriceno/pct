@@ -8,15 +8,18 @@ from ..common.configuration import (
     PCT_BORDER_PIXELS,
 )
 
-def resize_image_width(image, width):
-    current_width = image.shape[1]
-    if width == current_width:
-        return image.copy()
-    
+def crop_image(image, left, right, top, bottom, buffer=0):
+    top = max(0, top-buffer)
+    bottom = min(image.shape[0], bottom+buffer)
+    left = max(0, left-buffer)
+    right = min(image.shape[1], right+buffer)
+    return image[top:bottom, left:right].copy()
+
+def resize_image(image, height, width):
     current_height = image.shape[0]
-    height = (width * current_height) // current_width
+    current_width = image.shape[1]
     
-    if width < current_width:
+    if (height * width) < (current_height * current_width):
         interp = cv2.INTER_AREA
     else:
         interp = cv2.INTER_LINEAR
@@ -31,6 +34,20 @@ def resize_image_height(image, height):
     width = (height * current_width) // current_height
     
     if height < current_height:
+        interp = cv2.INTER_AREA
+    else:
+        interp = cv2.INTER_LINEAR
+    return cv2.resize(image, (width, height), interpolation=interp)
+
+def resize_image_width(image, width):
+    current_width = image.shape[1]
+    if width == current_width:
+        return image.copy()
+    
+    current_height = image.shape[0]
+    height = (width * current_height) // current_width
+    
+    if width < current_width:
         interp = cv2.INTER_AREA
     else:
         interp = cv2.INTER_LINEAR
@@ -68,30 +85,44 @@ def compose_images(images, height):
             
     return numpy.concatenate(bordered_images, axis=1)
 
-# A lot of this code was based off of https://goo.gl/Rnpyvx
 def find_dominant_contours(image, strength):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur_str = 1 + 2 * strength
     blurred = cv2.GaussianBlur(gray, (blur_str, blur_str), 0)
     edge_str = 250 // math.sqrt(strength)
     edged = cv2.Canny(blurred, 0, edge_str)
-    _, contours, _ = cv2.findContours(edged, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
- 
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    _, contours, _ = cv2.findContours(
+        edged,
+        cv2.RETR_LIST,
+        cv2.CHAIN_APPROX_NONE
+    ) 
     return contours
-    for cnt in contours:
-        return cnt
-        print(cv2.contourArea(cnt))
-        epsilon = 0.1 * cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, epsilon, True)
-        print(len(approx))
-        print(cv2.contourArea(approx))
-        if len(approx) == 4:
-            return approx
-        
-    return None
 
 def draw_contours(image, contours):
     new_image = image.copy()
     cv2.drawContours(new_image, contours, -1, (0, 255, 0), 10)
     return new_image
+
+def extrema(contour):
+    left = min(contour[:,:,0])[0]
+    right = max(contour[:,:,0])[0]
+    top = min(contour[:,:,1])[0]
+    bottom = max(contour[:,:,1])[0]
+    return left, right, top, bottom
+
+def collected_extrema(contours):
+    leftmost = None
+    rightmost = None
+    topmost = None
+    bottommost = None
+    for cnt in contours:
+        left, right, top, bottom = extrema(cnt)
+        if leftmost is None or left < leftmost:
+            leftmost = left
+        if rightmost is None or right > rightmost:
+            rightmost = right
+        if topmost is None or top < topmost:
+            topmost = top
+        if bottommost is None or bottom > bottommost:
+            bottommost = bottom
+    return leftmost, rightmost, topmost, bottommost

@@ -5,17 +5,19 @@ import cv2
 from os.path import basename
 
 from ..common.configuration import (
+    PCT_FIT_BUFFER,
     PCT_HACK_WINDOW_DELAY,
 )
 from ..datamanagement.files import (
     get_edited_image_filepath,
 )
 from .imageprocessing import (
+    crop_image,
     resize_image_width,
     rotate_image,
     compose_images,
     find_dominant_contours,
-    draw_contours,
+    collected_extrema,
 )
 
 class PctComposerResponse:
@@ -110,6 +112,11 @@ class PctComposer(BaseComposer):
             return False
         return self._get_composer(index).fit(strength, debug)
     
+    def fit_all(self, strength, debug=False):
+        self._debug = debug
+        self._log_debug('Fitting images at {}'.format(strength))
+        return self._fit_all(strength)
+    
     def rotate(self, index, angle, debug=False):
         self._debug = debug
         self._log_debug('Rotating image {} by {}'.format(index, angle))
@@ -157,6 +164,11 @@ class PctComposer(BaseComposer):
             return False
         return self._get_composer(index).redo(debug)
     
+    def cleanup(self, debug=False):
+        self._debug = debug
+        self._log_debug('Cleaning up composer...')
+        return self._cleanup()
+    
     #
     # Private
     #
@@ -181,8 +193,7 @@ class PctComposer(BaseComposer):
         return self._image_composers
 
     def _init_window(self, name=None):
-        if self._window is not None:
-            cv2.destroyWindow(self._window)
+        self._destroy_window()
         if name is not None:
             self._window = name
         else:
@@ -190,7 +201,12 @@ class PctComposer(BaseComposer):
                 [c.get_window() for c in self._get_composers()]
             )
         cv2.namedWindow(self._window)
-        
+    
+    def _destroy_window(self):
+        if self._window is not None:
+            cv2.destroyWindow(self._window)
+        self._window = None
+
     def _check_index(self, index):
         if index in self._indexed_images:
             return True
@@ -227,9 +243,10 @@ class PctComposer(BaseComposer):
         preview = resize_image_width(self._composition, width)
         self._show_image(preview, x, y)
     
-    def _show_image(self, image, x=0, y=0):
+    def _show_image(self, image, x=None, y=None):
         cv2.imshow(self._window, image)
-        cv2.moveWindow(self._window, x, y)
+        if x is not None and y is not None:
+            cv2.moveWindow(self._window, x, y)
         cv2.waitKey(PCT_HACK_WINDOW_DELAY)
     
     def _save_changed_images(self):
@@ -248,6 +265,23 @@ class PctComposer(BaseComposer):
         for f in image_files:
             fp.write(f + '\n')
         fp.close()
+        return True
+    
+    def _fit_all(self, strength):
+        for c in self._get_composers():
+            if not c.fit(strength, self._debug):
+                return False
+        return True
+    
+    def _cleanup(self):
+        # Cleans up all of the preview images
+        for c in self._get_composers():
+            if not c.cleanup(self._debug):
+                return False
+            
+        # Cleans up any composed image
+        self._destroy_window()
+        
         return True
     
 class ImgComposerError(BaseComposerError):
@@ -306,7 +340,11 @@ class ImgComposer(BaseComposer):
         self._log_debug('Redoing action on {}'.format(self._image_file))
         return self._redo()
             
-        
+    def cleanup(self, debug=False):
+        self._debug = debug
+        self._log_debug('Cleaning up image composer')
+        return self._cleanup()
+    
     #
     # Private
     #
@@ -355,13 +393,19 @@ class ImgComposer(BaseComposer):
         self._window = basename(self._image_file)
         cv2.namedWindow(self._window)
     
-    def _show_image(self, image=None, x=0, y=0):
+    def _destroy_window(self):
+        if self._window is not None:
+            cv2.destroyWindow(self._window)
+        self._window = None
+        
+    def _show_image(self, image=None, x=None, y=None):
         self._log_debug('Showing image {}'.format(self._image_file))
         if image is None:
             cv2.imshow(self._window, self._current_image())
         else:
             cv2.imshow(self._window, image)
-        cv2.moveWindow(self._window, x, y)
+        if x is not None and y is not None:
+            cv2.moveWindow(self._window, x, y)
         cv2.waitKey(PCT_HACK_WINDOW_DELAY)
 
     def _get_save_filepath(self):
@@ -371,8 +415,15 @@ class ImgComposer(BaseComposer):
         contours = find_dominant_contours(self._current_image(), strength)
         if contours is None:
             return False
-        # print(contour)
-        fitted = draw_contours(self._current_image(), contours)
+        left, right, top, bottom = collected_extrema(contours)
+        fitted = crop_image(
+            self._current_image(),
+            left,
+            right,
+            top,
+            bottom,
+            PCT_FIT_BUFFER,
+        )
         if fitted is None:
             return False
         self._add_image(fitted)
@@ -400,3 +451,7 @@ class ImgComposer(BaseComposer):
             self._add_image(image)
             return True
         return False
+
+    def _cleanup(self):
+        self._destroy_window()
+        return True

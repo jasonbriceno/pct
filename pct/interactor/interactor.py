@@ -69,13 +69,38 @@ class PctInteractorError(Exception):
 class PctInteractor(cmd.Cmd):
     
     #
-    # Public
+    # Overwritten methods
     #
     
     def precmd(self, line):
         if not line:
             return ''
         return line.strip()
+    
+    def preloop(self):
+        self._output_response('Welcome to the Pictionary Telephone composer.')
+        self._output_response("Type 'help' for more info.")
+        
+        if self._debug:
+            self._output_response()
+            self._output_response('Debug enabled.')
+            
+        self._output_response()
+        
+    def postloop(self):
+        self._output_response('See ya.')
+    
+    # Unrecognized command handler
+    def default(self, line):
+        try:
+            index = int(line)
+            self.do_image(str(index))
+        except Exception:
+            self._output_response('Unrecognized command: {}'.format(line))
+        
+    #
+    # Do methods
+    #
     
     def do_c(self, line):
         return self.do_compose(line)
@@ -86,6 +111,7 @@ class PctInteractor(cmd.Cmd):
         Composes the images into a single image.
         """
         try:
+            self._output_response('Composing images...')
             self._validate_composer()
             self._refresh_images()
             self._compose_images()
@@ -125,6 +151,7 @@ class PctInteractor(cmd.Cmd):
         Fits the current working image canvas to the card.
         """
         try:
+            self._output_response('Fitting image...')
             self._validate_composer()
             if not line:
                 strength = PCT_DEFAULT_FIT
@@ -150,6 +177,7 @@ class PctInteractor(cmd.Cmd):
         Sets the current working image.
         """
         try:
+            self._output_response('Changing working image...')
             self._validate_composer()
             if not self._set_working_image(line):
                 self._output_response('{}: Invalid image index'.format(line))
@@ -164,6 +192,7 @@ class PctInteractor(cmd.Cmd):
         Sets the current working image.
         """
         try:
+            self._output_response('Re-indexing images...')
             self._validate_composer()
             if not self._reindex_image(line):
                 self._output_response('{}: Invalid image indices'.format(line))
@@ -203,6 +232,32 @@ class PctInteractor(cmd.Cmd):
         except Exception:
             self._output_response(traceback.format_exc(), True)
     
+    def do_m(self, line):
+        """
+        m
+        Fits all working image canvases to the card.
+        """
+        return self.do_magic(line)
+    
+    def do_magic(self, line):
+        """
+        magic
+        Fits all working image canvases to the card.
+        """
+        try:
+            self._output_response('Performing magic...')
+            self._validate_composer()
+            if not line:
+                strength = PCT_DEFAULT_FIT
+            else:
+                strength = int(line)
+            if self._magic(strength):
+                self.do_compose('')
+        except PctInteractorError as err:
+            self._output_response(str(err), True)
+        except Exception:
+            self._output_response(traceback.format_exc(), True)
+            
     def do_q(self, line):
         """
         q
@@ -215,6 +270,7 @@ class PctInteractor(cmd.Cmd):
         quit
         Quits the Interactor.
         """
+        self._quit()
         return True
     
     def do_uu(self, line):
@@ -230,6 +286,7 @@ class PctInteractor(cmd.Cmd):
         Redoes the previously undone action.
         """
         try:
+            self._output_response('Re-doing action...')
             self._validate_composer()
             if self._redo():
                 self.do_compose('')
@@ -251,6 +308,7 @@ class PctInteractor(cmd.Cmd):
         Rotates current working image.
         """
         try:
+            self._output_response('Rotating image...')
             self._validate_composer()
             if not line:
                 angle = PCT_DEFAULT_ROTATION
@@ -276,6 +334,7 @@ class PctInteractor(cmd.Cmd):
         Saves currently composed images.
         """
         try:
+            self._output_response('Saving images and metadata...')
             self._validate_composer()
             self._save()
         except PctInteractorError as err:
@@ -296,6 +355,7 @@ class PctInteractor(cmd.Cmd):
         Undoes the previous action.
         """
         try:
+            self._output_response('Undoing action...')
             self._validate_composer()
             if self._undo():
                 self.do_compose('')
@@ -303,19 +363,6 @@ class PctInteractor(cmd.Cmd):
             self._output_response(str(err), True)
         except Exception:
             self._output_response(traceback.format_exc(), True)
-            
-    def preloop(self):
-        self._output_response('Welcome to the Pictionary Telephone composer.')
-        self._output_response("Type 'help' for more info.")
-        
-        if self._debug:
-            self._output_response()
-            self._output_response('Debug enabled.')
-            
-        self._output_response()
-        
-    def postloop(self):
-        self._output_response('See ya.', False)
 
     #
     # Private
@@ -334,7 +381,7 @@ class PctInteractor(cmd.Cmd):
         self._set_prompt()
         
         self._composer = None
-        
+    
     def _init_writers(self, spacer):
         self._message_writer = PctInteractorWriter(spacer)
         self._debug_writer = PctInteractorWriter(spacer, AnsiColors.OKGREEN)
@@ -354,6 +401,8 @@ class PctInteractor(cmd.Cmd):
             self._message_writer.write(response)
    
     def _init_composer(self, filepaths):
+        self._destroy_composer()
+        self._working_image = None
         self._composer = PctComposer(
             filepaths,
             self._message_writer,
@@ -361,6 +410,12 @@ class PctInteractor(cmd.Cmd):
         )
         self._composer.prepare(self._debug)
     
+    def _destroy_composer(self):
+        if self._composer is not None:
+            self._composer.cleanup(self._debug)
+        self._composer = None
+        self._working_image = None
+        
     def _validate_composer(self):
         if self._composer is None:
             raise PctInteractorError('No directory is loaded.')
@@ -429,6 +484,9 @@ class PctInteractor(cmd.Cmd):
             return False
         return self._composer.fit(self._working_image, strength, self._debug)
     
+    def _magic(self, strength):
+        return self._composer.fit_all(strength, self._debug)
+    
     def _rotate(self, angle):
         if self._working_image is None:
             self._output_response('No working image to rotate.')
@@ -453,6 +511,9 @@ class PctInteractor(cmd.Cmd):
             self._output_response('No working image to redo.')
             return False
         return self._composer.redo(self._working_image, self._debug)
-            
+    
+    def _quit(self):
+        self._destroy_composer()
+        
 if __name__ == '__main__':
     PctInteractor().cmdloop()
