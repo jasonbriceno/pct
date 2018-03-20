@@ -1,5 +1,5 @@
-InteractiveKnowledge Core Library
-=================================
+Pictionary Telephone Tool
+=========================
 
 This library defines a useful NLP/Knowledge-Retreival Engine. This documentation is for you, Gambino.
   
@@ -17,21 +17,14 @@ You should then clone the repo, navigate to the base directory, and run::
 This will install the python environment and libraries, which you can activate by running::
 
   source activate <environment_name>
-
-You'll then need to install the english-language model for SpacY, like so::
-
-  python -m spacy download en
   
-You should now have a fully installed iknow library.
+You should now have a fully installed pct library.
 
 Simple Start
 ------------
 
 The library comes with a simple interactor CLI, which you can run thusly::
 
-  python -m iknow.interactor.interactor
+  python -m pct.interactor.interactor
   
-Details
--------
-
-More later...
+This interactor can be used to load directories containing all of the images for a given pictionary telephone comic. You can then modify picture order, rotation, and cropping, and finnaly compose a comic. The interactor help function should explain everything.
