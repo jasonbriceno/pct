@@ -1,8 +1,8 @@
-Pictionary Telephone Tool
+Pictionary-Telephone Tool
 =========================
 
-This library defines a useful NLP/Knowledge-Retreival Engine. This documentation is for you, Gambino.
-  
+This library defines a useful Pictionary-Telephone Tool that allow you to compose individual Pictionary-Telephone cards into a single comic.
+
 Installation
 ------------
 
@@ -27,4 +27,4 @@ The library comes with a simple interactor CLI, which you can run thusly::
 
   python -m pct.interactor.interactor
   
-This interactor can be used to load directories containing all of the images for a given pictionary telephone comic. You can then modify picture order, rotation, and cropping, and finnaly compose a comic. The interactor help function should explain everything.
+This interactor can be used to load directories containing all of the images for a given pictionary telephone comic. You can then modify picture order, rotation, and cropping, and finally compose a comic. The interactor help function should explain everything.
