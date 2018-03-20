@@ -8,7 +8,6 @@ from os import path
 
 from ..common.configuration import (
     PCT_DEFAULT_DEBUG,
-    PCT_TEST_DIR,
     
     PCT_PREVIEW_START_X,
     PCT_PREVIEW_START_Y,

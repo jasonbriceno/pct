@@ -6,7 +6,6 @@ A global configuration file for the library.
 
 # Debugging and testing
 PCT_DEFAULT_DEBUG = True
-PCT_TEST_DIR = '/Users/jasonbriceno/Pictures/Edited/Pictionary Telephone/Game Night 2018/cheating'
 
 # Image Files
 PCT_IMAGE_EXTENSIONS = ['jpg', 'png']
